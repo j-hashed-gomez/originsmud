@@ -1,16 +1,14 @@
 import socket
 import threading
-from datetime import datetime
 import logging
-import sys
-import auth  # Importamos el nuevo módulo de autenticación
+from datetime import datetime
+import auth
 
 # Configuración del log para que escriba en stdout
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    stream=sys.stdout
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 
 # Array para almacenar las conexiones
@@ -25,7 +23,7 @@ def handle_client(conn, addr):
     }
     connections.append(connection_data)
     logging.info(f"Nueva conexión desde {addr[0]} en {connection_data['date']}")
-    
+
     # Autenticación del usuario
     if not auth.authenticate_user(conn, addr):
         logging.info(f"Conexión terminada para {addr[0]} después de fallar en autenticación.")
@@ -44,7 +42,7 @@ def handle_client(conn, addr):
         conn.close()
         logging.info(f"Conexión con {addr[0]} cerrada.")
 
-# Función para levantar el servidor
+# Función para iniciar el servidor, llamada desde el archivo principal
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(('0.0.0.0', 5432))  # Escuchar en todas las interfaces
@@ -56,7 +54,3 @@ def start_server():
         conn, addr = server_socket.accept()  # Aceptar nueva conexión
         client_thread = threading.Thread(target=handle_client, args=(conn, addr))
         client_thread.start()  # Hilo independiente para manejar cada cliente
-
-if __name__ == "__main__":
-    start_server()
-

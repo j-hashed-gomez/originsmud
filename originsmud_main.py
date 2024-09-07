@@ -10,6 +10,7 @@ if __name__ == "__main__":
         print("Conexión a la base de datos establecida.")
     else:
         print("Error al conectar a la base de datos. Verifica las configuraciones.")
+        exit(1)  # Salir si no hay conexión a la base de datos
 
     # Iniciar el servidor
     originsmud_server.start_server()
