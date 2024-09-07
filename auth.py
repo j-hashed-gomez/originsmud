@@ -25,14 +25,14 @@ def authenticate_user(conn, addr):
     
     # Verificar si la IP está bloqueada
     if is_ip_blocked(ip):
-        conn.send(b"Su IP está temporalmente bloqueada. Intente de nuevo más tarde.\n")
+        conn.send("Su IP está temporalmente bloqueada. Intente de nuevo más tarde.\n".encode('utf-8'))
         conn.close()
         return False
     
     # Conectar a la base de datos
     connection = db_connection.connect_to_database()
     if not connection:
-        conn.send(b"Error al conectar a la base de datos. Intente de nuevo más tarde.\n")
+        conn.send("Error al conectar a la base de datos. Intente de nuevo más tarde.\n".encode('utf-8'))
         conn.close()
         return False
     
@@ -40,9 +40,9 @@ def authenticate_user(conn, addr):
     
     while retries < 3:
         # Solicitar username y password
-        conn.send(b"Ingrese su nombre de usuario: ")
+        conn.send("Ingrese su nombre de usuario: ".encode('utf-8'))
         username = conn.recv(1024).decode().strip()
-        conn.send(b"Ingrese su contrasena: ")
+        conn.send("Ingrese su contrasena: ".encode('utf-8'))
         password = conn.recv(1024).decode().strip()
         
         # Consultar en la base de datos si el usuario y la contraseña son correctos
@@ -53,7 +53,7 @@ def authenticate_user(conn, addr):
         if result:
             # Usuario autenticado correctamente
             welcome_message = f"Bienvenido a OriginsMUD, {username}!\n"
-            conn.send(welcome_message.encode())
+            conn.send(welcome_message.encode('utf-8'))
             logging.info(f"Usuario {username} autenticado correctamente desde {ip}")
             cursor.close()
             connection.close()
@@ -61,7 +61,7 @@ def authenticate_user(conn, addr):
         else:
             # Fallo de autenticación
             retries += 1
-            conn.send(b"Nombre de usuario o contrasena incorrectos. Intente de nuevo.\n")
+            conn.send("Nombre de usuario o contrasena incorrectos. Intente de nuevo.\n".encode('utf-8'))
             logging.warning(f"Intento fallido de autenticación desde {ip}")
     
     # Si falla 3 veces, bloquear la IP
@@ -70,10 +70,11 @@ def authenticate_user(conn, addr):
             "ip": ip,
             "date": datetime.now()
         })
-        conn.send(b"Ha fallado 3 veces. Su IP esta temporalmente bloqueada por 1 minuto.\n")
+        conn.send("Ha fallado 3 veces. Su IP esta temporalmente bloqueada por 1 minuto.\n".encode('utf-8'))
         logging.warning(f"IP {ip} bloqueada temporalmente por 1 minuto.")
     
     cursor.close()
     connection.close()
     conn.close()
     return False
+
