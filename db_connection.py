@@ -2,12 +2,14 @@ import os
 import mysql.connector
 from mysql.connector import Error
 import logging
+import sys
 
-# Configuración del log
+# Configuración del log para que escriba en stdout
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout  # Asegúrate de que los logs se envíen al stdout
 )
 
 def connect_to_database():
@@ -47,4 +49,3 @@ def connect_to_database():
         if 'connection' in locals() and connection.is_connected():
             connection.close()
             logging.info("Conexión cerrada.")
-

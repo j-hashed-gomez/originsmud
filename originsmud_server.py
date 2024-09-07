@@ -1,6 +1,16 @@
 import socket
 import threading
 from datetime import datetime
+import logging
+import sys
+
+# Configuración del log para que escriba en stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout  # Asegúrate de que los logs se envíen al stdout
+)
 
 # Array para almacenar las conexiones
 connections = []
@@ -13,7 +23,7 @@ def handle_client(conn, addr):
         "date": datetime.now()   # Fecha y hora de la conexión
     }
     connections.append(connection_data)
-    print(f"Nueva conexión desde {addr[0]} en {connection_data['date']}")
+    logging.info(f"Nueva conexión desde {addr[0]} en {connection_data['date']}")
 
     try:
         # Mantener la conexión abierta mientras el cliente está conectado
@@ -21,19 +31,19 @@ def handle_client(conn, addr):
             data = conn.recv(1024)
             if not data:
                 break
-            print(f"Recibido de {addr[0]}: {data.decode('utf-8')}")
+            logging.info(f"Recibido de {addr[0]}: {data.decode('utf-8')}")
     except ConnectionResetError:
-        print(f"Conexión con {addr[0]} cerrada inesperadamente.")
+        logging.error(f"Conexión con {addr[0]} cerrada inesperadamente.")
     finally:
         conn.close()
-        print(f"Conexión con {addr[0]} cerrada.")
+        logging.info(f"Conexión con {addr[0]} cerrada.")
 
 # Función para levantar el servidor
 def start_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(('0.0.0.0', 5432))  # Escuchar en todas las interfaces
     server_socket.listen(5)  # Permitir hasta 5 conexiones pendientes
-    print("Servidor escuchando en el puerto 5432...")
+    logging.info("Servidor escuchando en el puerto 5432...")
 
     # Loop para aceptar múltiples conexiones
     while True:
