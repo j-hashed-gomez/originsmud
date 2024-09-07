@@ -50,7 +50,15 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no root@51.210.102.229 << 'EOF'
             docker pull ghcr.io/${{ github.repository }}/my-image:latest
-            docker run -d -p 5432:5432 --name originsmud ghcr.io/${{ github.repository }}/my-image:latest
+            docker run -d \
+              -p 5432:5432 \
+              --name originsmud \
+              -e DB_HOST=${{ secrets.DB_HOST }} \
+              -e DB_PORT=${{ secrets.DB_PORT }} \
+              -e DB_USER=${{ secrets.DB_USER }} \
+              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e DB_NAME=${{ secrets.DB_NAME }} \
+              ghcr.io/${{ github.repository }}/my-image:latest
           EOF
 
       # 8. Verify that the new container is running
