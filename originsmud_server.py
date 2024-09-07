@@ -50,4 +50,10 @@ def connect_to_database():
             logging.info("Conexión cerrada.")
 
 if __name__ == "__main__":
+    print(f"DB_HOST: {os.getenv('DB_HOST')}")
+    print(f"DB_PORT: {os.getenv('DB_PORT')}")
+    print(f"DB_USER: {os.getenv('DB_USER')}")
+    print(f"DB_PASSWORD: {os.getenv('DB_PASSWORD')}")
+    print(f"DB_NAME: {os.getenv('DB_NAME')}")
+
     connect_to_database()
