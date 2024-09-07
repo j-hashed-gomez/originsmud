@@ -1,23 +1,3 @@
-import db_connection
-import mysql.connector
-import logging
-from datetime import datetime, timedelta
-
-# Lista para almacenar las IPs temporalmente bloqueadas
-temp_blocked_ips = []
-
-# Función para verificar si la IP está bloqueada
-def is_ip_blocked(ip):
-    for blocked_ip in temp_blocked_ips:
-        if blocked_ip['ip'] == ip:
-            if datetime.now() < blocked_ip['date'] + timedelta(minutes=1):
-                return True
-            else:
-                # Eliminar IP del array si ha pasado el tiempo de bloqueo
-                temp_blocked_ips.remove(blocked_ip)
-                return False
-    return False
-
 # Función de autenticación
 def authenticate_user(conn, addr):
     ip = addr[0]  # Dirección IP del cliente
@@ -31,7 +11,7 @@ def authenticate_user(conn, addr):
     
     # Conectar a la base de datos
     connection = db_connection.connect_to_database()
-    if not connection:
+    if not connection or not connection.is_connected():
         conn.send("Error al conectar a la base de datos. Intente de nuevo más tarde.\n".encode('utf-8'))
         conn.close()
         return False
@@ -47,7 +27,13 @@ def authenticate_user(conn, addr):
         
         # Consultar en la base de datos si el usuario y la contraseña son correctos
         query = "SELECT * FROM users WHERE username = %s AND password = %s"
-        cursor.execute(query, (username, password))
+        try:
+            cursor.execute(query, (username, password))
+        except mysql.connector.Error as e:
+            logging.error(f"Error en la consulta a la base de datos: {e}")
+            conn.send("Error en la consulta a la base de datos.\n".encode('utf-8'))
+            break
+        
         result = cursor.fetchone()
         
         if result:
