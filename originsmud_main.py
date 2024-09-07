@@ -1,5 +1,6 @@
 import originsmud_server
 import db_connection
+import auth
 
 if __name__ == "__main__":
     print("Iniciando servidor OriginsMUD...")
@@ -12,5 +13,5 @@ if __name__ == "__main__":
         print("Error al conectar a la base de datos. Verifica las configuraciones.")
         exit(1)  # Salir si no hay conexión a la base de datos
 
-    # Iniciar el servidor
-    originsmud_server.start_server()
+    # Iniciar el servidor y pasar la función de autenticación
+    originsmud_server.start_server(auth.authenticate_user)
