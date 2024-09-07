@@ -77,4 +77,3 @@ def authenticate_user(conn, addr):
     connection.close()
     conn.close()
     return False
-
