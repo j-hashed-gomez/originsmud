@@ -3,13 +3,14 @@ import threading
 from datetime import datetime
 import logging
 import sys
+import auth  # Importamos el nuevo módulo de autenticación
 
 # Configuración del log para que escriba en stdout
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    stream=sys.stdout  # Asegúrate de que los logs se envíen al stdout
+    stream=sys.stdout
 )
 
 # Array para almacenar las conexiones
@@ -24,7 +25,12 @@ def handle_client(conn, addr):
     }
     connections.append(connection_data)
     logging.info(f"Nueva conexión desde {addr[0]} en {connection_data['date']}")
-
+    
+    # Autenticación del usuario
+    if not auth.authenticate_user(conn, addr):
+        logging.info(f"Conexión terminada para {addr[0]} después de fallar en autenticación.")
+        return  # Finalizar la conexión si la autenticación falla
+    
     try:
         # Mantener la conexión abierta mientras el cliente está conectado
         while True:
@@ -53,3 +59,4 @@ def start_server():
 
 if __name__ == "__main__":
     start_server()
+
