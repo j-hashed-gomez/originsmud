@@ -12,6 +12,7 @@ logging.basicConfig(
     stream=sys.stdout  # Asegúrate de que los logs se envíen al stdout
 )
 
+# Función para conectar a la base de datos
 def connect_to_database():
     try:
         # Leer las variables de entorno
@@ -24,7 +25,7 @@ def connect_to_database():
         # Verificar si las variables están configuradas
         if not all([host, port, user, password, database]):
             logging.error("Faltan una o más variables de entorno para la conexión.")
-            return False
+            return None
 
         # Conectar a la base de datos
         logging.info(f"Intentando conectar a la base de datos {database} en {host}:{port}...")
@@ -42,10 +43,13 @@ def connect_to_database():
 
     except Error as e:
         logging.error(f"Error al conectar a la base de datos: {str(e)}")
-        return False
+        return None
 
-    finally:
-        # Cerrar conexión si se ha realizado correctamente
-        if 'connection' in locals() and connection.is_connected():
+# Función para cerrar la conexión a la base de datos
+def close_database_connection(connection):
+    try:
+        if connection and connection.is_connected():
             connection.close()
-            logging.info("Conexión cerrada.")
+            logging.info("Conexión cerrada correctamente.")
+    except Error as e:
+        logging.error(f"Error al cerrar la conexión a la base de datos: {str(e)}")
