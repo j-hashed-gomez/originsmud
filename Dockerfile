@@ -32,4 +32,5 @@ RUN chmod +x /app/originsmud_server.py
 EXPOSE 5432
 
 # Ejecutar el script tetri_server.py con Python
-CMD ["python3", "/app/originsmud_server.py"]
+#CMD ["python3", "/app/originsmud_server.py"]
+CMD ["tail", "-f", "/dev/null"]
