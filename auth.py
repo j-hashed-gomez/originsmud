@@ -1,24 +1,3 @@
-import db_connection
-import mysql.connector
-import logging
-from datetime import datetime, timedelta
-
-# Lista para almacenar las IPs temporalmente bloqueadas
-temp_blocked_ips = []
-
-# Función para verificar si la IP está bloqueada
-def is_ip_blocked(ip):
-    for blocked_ip in temp_blocked_ips:
-        if blocked_ip['ip'] == ip:
-            if datetime.now() < blocked_ip['date'] + timedelta(minutes=1):
-                return True
-            else:
-                # Eliminar IP del array si ha pasado el tiempo de bloqueo
-                temp_blocked_ips.remove(blocked_ip)
-                return False
-    return False
-
-# Función de autenticación
 def authenticate_user(conn, addr):
     ip = addr[0]  # Dirección IP del cliente
     retries = 0   # Contador de intentos fallidos
@@ -26,14 +5,12 @@ def authenticate_user(conn, addr):
     # Verificar si la IP está bloqueada
     if is_ip_blocked(ip):
         conn.send("Su IP está temporalmente bloqueada. Intente de nuevo más tarde.\n".encode('utf-8'))
-        conn.close()
         return False
     
     # Crear la conexión a la base de datos
     connection = db_connection.connect_to_database()
     if not connection:
         conn.send("Error al conectar a la base de datos. Intente de nuevo más tarde.\n".encode('utf-8'))
-        conn.close()
         return False
     
     try:
@@ -69,7 +46,6 @@ def authenticate_user(conn, addr):
     finally:
         # Cerrar la conexión a la base de datos
         db_connection.close_database_connection(connection)
-        conn.close()
 
     # Si falla 3 veces, bloquear la IP
     if retries >= 3:
