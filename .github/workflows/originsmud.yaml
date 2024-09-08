@@ -58,8 +58,8 @@ jobs:
               -e DB_USER=${{ secrets.DB_USER }} \
               -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
               -e DB_NAME=${{ secrets.DB_NAME }} \
-              -e originsmud_private=${{ secrets.originsmud.private }} \
-              -e originsmud_public=${{ secrets.originsmud.prublic }} \
+              -e originsmud_private=${{ secrets.ORIGINSMUD_PRIVATE }} \
+              -e originsmud_public=${{ secrets.ORIGINSMUD_PUBLIC }} \
               ghcr.io/${{ github.repository }}/my-image:latest
           EOF
 
