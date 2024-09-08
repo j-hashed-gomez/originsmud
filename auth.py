@@ -1,10 +1,23 @@
 import db_connection
 import mysql.connector
 import logging
+import os
 from datetime import datetime, timedelta
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding
 
 # Lista para almacenar las IPs temporalmente bloqueadas
 temp_blocked_ips = []
+
+# Cargar las claves desde las variables de entorno
+private_key_pem = os.getenv('ORIGINSMUD_PRIVATE').encode()
+public_key_pem = os.getenv('ORIGINSMUD_PUBLIC').encode()
+
+# Cargar la clave privada desde las variables de entorno
+private_key = serialization.load_pem_private_key(private_key_pem, password=None)
+
+# Cargar la clave pública desde las variables de entorno
+public_key = serialization.load_pem_public_key(public_key_pem)
 
 # Función para verificar si la IP está bloqueada
 def is_ip_blocked(ip):
@@ -17,6 +30,30 @@ def is_ip_blocked(ip):
                 temp_blocked_ips.remove(blocked_ip)
                 return False
     return False
+
+# Función para cifrar contraseñas
+def encrypt_password(password):
+    encrypted = public_key.encrypt(
+        password.encode(),
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return encrypted
+
+# Función para descifrar contraseñas
+def decrypt_password(encrypted_password):
+    decrypted = private_key.decrypt(
+        encrypted_password,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    return decrypted.decode()
 
 # Función de autenticación
 def authenticate_user(conn, addr):
@@ -43,9 +80,12 @@ def authenticate_user(conn, addr):
             conn.send("Ingrese su contrasena: ".encode('utf-8'))
             password = conn.recv(1024).decode().strip()
 
+            # Encriptar la contraseña antes de enviarla a la base de datos
+            encrypted_password = encrypt_password(password)
+
             # Consultar en la base de datos si el usuario y la contraseña son correctos
             query = "SELECT * FROM users WHERE username = %s AND password = %s"
-            cursor.execute(query, (username, password))
+            cursor.execute(query, (username, encrypted_password))
             result = cursor.fetchone()
 
             if result:
@@ -68,7 +108,7 @@ def authenticate_user(conn, addr):
         # Cerrar la conexión a la base de datos
         db_connection.close_database_connection(connection)
 
-    # Si falla 3 veces, bloquear la IP
+    # Si falla 3 veces, bloquear la IP y purgar la sesión
     if retries >= 3:
         temp_blocked_ips.append({
             "ip": ip,
@@ -76,5 +116,9 @@ def authenticate_user(conn, addr):
         })
         conn.send("Ha fallado 3 veces. Su IP esta temporalmente bloqueada por 1 minuto.\n".encode('utf-8'))
         logging.warning(f"IP {ip} bloqueada temporalmente por 1 minuto.")
+        
+        # Purgar la sesión cerrando la conexión con el cliente
+        conn.close()
+        logging.info(f"Sesión purgada para la IP {ip} tras 3 intentos fallidos.")
 
     return False
