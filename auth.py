@@ -16,10 +16,12 @@ public_key_pem = os.getenv('ORIGINSMUD_PUBLIC')
 if not private_key_pem or not public_key_pem:
     logging.error("No se pudieron cargar las claves ORIGINSMUD_PRIVATE o ORIGINSMUD_PUBLIC desde las variables de entorno.")
 else:
-    logging.debug("Claves cargadas correctamente.")
+    logging.debug(f"Clave privada cargada (primeros 50 caracteres): {private_key_pem[:50]}")
+    logging.debug(f"Clave pública cargada (primeros 50 caracteres): {public_key_pem[:50]}")
 
-private_key_pem = private_key_pem.encode()
-public_key_pem = public_key_pem.encode()
+# Reemplazar los caracteres especiales de salto de línea y convertir a bytes
+private_key_pem = private_key_pem.replace('\\n', '\n').encode()
+public_key_pem = public_key_pem.replace('\\n', '\n').encode()
 
 # Cargar la clave privada desde las variables de entorno
 private_key = serialization.load_pem_private_key(private_key_pem, password=None)
@@ -39,29 +41,40 @@ def is_ip_blocked(ip):
                 return False
     return False
 
-# Función para cifrar contraseñas
+# Función para cifrar contraseñas (ajustada para claves de 2048 bits)
 def encrypt_password(password):
-    encrypted = public_key.encrypt(
-        password.encode(),
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
+    try:
+        password_bytes = password.encode()
+
+        # Cifrar la contraseña con la clave pública de 2048 bits
+        encrypted = public_key.encrypt(
+            password_bytes,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
         )
-    )
-    return encrypted
+        return encrypted
+    except ValueError as e:
+        logging.error(f"Error al cifrar la contraseña: {e}")
+        raise
 
 # Función para descifrar contraseñas
 def decrypt_password(encrypted_password):
-    decrypted = private_key.decrypt(
-        encrypted_password,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
+    try:
+        decrypted = private_key.decrypt(
+            encrypted_password,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
         )
-    )
-    return decrypted.decode()
+        return decrypted.decode()
+    except ValueError as e:
+        logging.error(f"Error al descifrar la contraseña: {e}")
+        raise
 
 # Función de autenticación
 def authenticate_user(conn, addr):
