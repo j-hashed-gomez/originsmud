@@ -1,33 +1,28 @@
 # Utilizar la imagen oficial de Debian como base
 FROM debian:latest
 
-# Actualizar los paquetes e instalar sendmail, Python y otras dependencias necesarias
+# Actualizar los paquetes e instalar Postfix, Python y otras dependencias necesarias
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
     nano \
-    sendmail \
-    sendmail-bin \
-    m4 \
+    postfix \
     && apt-get clean
+
+# Configurar Postfix para que acepte correos desde localhost sin autenticación y sólo permita enviar para el dominio originsmud.es
+RUN echo "relayhost = " >> /etc/postfix/main.cf \
+    && echo "inet_interfaces = loopback-only" >> /etc/postfix/main.cf \
+    && echo "mydestination = localhost, originsmud.es" >> /etc/postfix/main.cf \
+    && echo "mynetworks = 127.0.0.0/8" >> /etc/postfix/main.cf \
+    && echo "local_recipient_maps =" >> /etc/postfix/main.cf \
+    && echo "myhostname = originsmud.es" >> /etc/postfix/main.cf
+
+# Reiniciar Postfix para aplicar la configuración
+RUN service postfix restart
 
 # Establecer el directorio de trabajo en /app
 WORKDIR /app
-
-# Configurar sendmail para que acepte correos desde localhost sin autenticación
-RUN echo "DAEMON_OPTIONS('Port=smtp,Addr=127.0.0.1, Name=MTA')dnl" >> /etc/mail/sendmail.mc \
-    && echo "FEATURE('relay_local_from')dnl" >> /etc/mail/sendmail.mc \
-    && echo "Cwlocalhost originsmud.es" >> /etc/mail/sendmail.mc \
-    && echo "LOCAL_DOMAIN('localhost')dnl" >> /etc/mail/sendmail.mc \
-    && echo "DOMAIN('originsmud.es')dnl" >> /etc/mail/sendmail.mc
-
-# Recompilar la configuración de sendmail
-RUN m4 /etc/mail/sendmail.mc > /etc/mail/sendmail.cf || { echo "Error al recompilar sendmail.mc"; exit 1; }
-
-# Actualizar alias y reiniciar sendmail
-RUN newaliases || { echo "Error al ejecutar newaliases"; exit 1; }
-RUN service sendmail restart || { echo "Error al reiniciar sendmail"; exit 1; }
 
 # Crear y activar un entorno virtual
 RUN python3 -m venv /app/venv
@@ -48,5 +43,5 @@ RUN chmod +x /app/originsmud_server.py
 # Exponer el puerto TCP 5432
 EXPOSE 5432
 
-# Iniciar el servicio sendmail y luego ejecutar el script de Python
-CMD service sendmail start && python3 /app/originsmud_main.py
+# Iniciar el servicio Postfix y luego ejecutar el script de Python
+CMD service postfix start && python3 /app/originsmud_main.py
