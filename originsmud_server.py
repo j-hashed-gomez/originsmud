@@ -24,11 +24,20 @@ def handle_client(conn, addr, auth_callback):
     logging.info(f"Nueva conexión desde {addr[0]} en {connection_data['date']}")
 
     # Llamar a la función de autenticación desde auth.py
-    auth_callback(conn, addr)
+    try:
+        auth_callback(conn, addr)
+    except Exception as e:
+        logging.error(f"Error durante la autenticación con {addr[0]}: {e}")
+        return
 
     try:
         while True:
             try:
+                # Verificar si el socket está abierto antes de intentar recibir
+                if conn.fileno() == -1:
+                    logging.info(f"Conexión con {addr[0]} cerrada previamente.")
+                    break
+
                 data = conn.recv(1024)
                 if not data:
                     break
@@ -39,12 +48,15 @@ def handle_client(conn, addr, auth_callback):
     except ConnectionResetError:
         logging.error(f"Conexión con {addr[0]} cerrada inesperadamente.")
     finally:
-        try:
-            conn.close()
-            logging.info(f"Conexión con {addr[0]} cerrada.")
-        except OSError:
-            logging.error(f"Error al cerrar la conexión con {addr[0]}.")
-        connections.remove(connection_data)
+        # Intentar cerrar el socket solo si aún está abierto
+        if conn.fileno() != -1:
+            try:
+                conn.close()
+                logging.info(f"Conexión con {addr[0]} cerrada.")
+            except OSError as e:
+                logging.error(f"Error al cerrar la conexión con {addr[0]}: {e}")
+        if connection_data in connections:
+            connections.remove(connection_data)
 
 # Función para iniciar el servidor
 def start_server(auth_callback):
