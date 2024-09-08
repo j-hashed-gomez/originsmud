@@ -12,18 +12,22 @@ RUN apt-get update && apt-get install -y \
     m4 \
     && apt-get clean
 
-# Configurar sendmail para que acepte correos de localhost sin autenticación
+# Establecer el directorio de trabajo en /app
+WORKDIR /app
+
+# Configurar sendmail para que acepte correos desde localhost sin autenticación
 RUN echo "DAEMON_OPTIONS('Port=smtp,Addr=127.0.0.1, Name=MTA')dnl" >> /etc/mail/sendmail.mc \
     && echo "FEATURE('relay_local_from')dnl" >> /etc/mail/sendmail.mc \
     && echo "Cwlocalhost originsmud.es" >> /etc/mail/sendmail.mc \
     && echo "LOCAL_DOMAIN('localhost')dnl" >> /etc/mail/sendmail.mc \
-    && echo "DOMAIN('originsmud.es')dnl" >> /etc/mail/sendmail.mc \
-    && m4 /etc/mail/sendmail.mc > /etc/mail/sendmail.cf \
-    && newaliases \
-    && service sendmail restart
+    && echo "DOMAIN('originsmud.es')dnl" >> /etc/mail/sendmail.mc
 
-# Establecer el directorio de trabajo en /app
-WORKDIR /app
+# Recompilar la configuración de sendmail
+RUN m4 /etc/mail/sendmail.mc > /etc/mail/sendmail.cf || { echo "Error al recompilar sendmail.mc"; exit 1; }
+
+# Actualizar alias y reiniciar sendmail
+RUN newaliases || { echo "Error al ejecutar newaliases"; exit 1; }
+RUN service sendmail restart || { echo "Error al reiniciar sendmail"; exit 1; }
 
 # Crear y activar un entorno virtual
 RUN python3 -m venv /app/venv
