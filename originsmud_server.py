@@ -2,6 +2,7 @@ import socket
 import threading
 import logging
 from datetime import datetime
+import commands  # Importar el módulo de comandos
 
 # Configuración del log para que escriba en stdout
 logging.basicConfig(
@@ -15,7 +16,6 @@ connections = []
 
 # Función que maneja las conexiones entrantes
 def handle_client(conn, addr, auth_callback):
-    # Guardar la IP y la fecha/hora de conexión
     connection_data = {
         "ip": addr[0],          # IP del cliente
         "date": datetime.now()   # Fecha y hora de la conexión
@@ -25,30 +25,44 @@ def handle_client(conn, addr, auth_callback):
 
     # Llamar a la función de autenticación desde auth.py
     try:
-        auth_callback(conn, addr)
+        user_privileges = auth_callback(conn, addr)
+        if not user_privileges:
+            return  # Si no se autenticó, salir de la función
     except Exception as e:
         logging.error(f"Error durante la autenticación con {addr[0]}: {e}")
         return
 
     try:
         while True:
-            try:
-                # Verificar si el socket está abierto antes de intentar recibir
-                if conn.fileno() == -1:
-                    logging.info(f"Conexión con {addr[0]} cerrada previamente.")
-                    break
-
-                data = conn.recv(1024)
-                if not data:
-                    break
-                logging.info(f"Recibido de {addr[0]}: {data.decode('utf-8')}")
-            except OSError as e:
-                logging.error(f"Error en la conexión con {addr[0]}: {e}")
+            if conn.fileno() == -1:
+                logging.info(f"Conexión con {addr[0]} cerrada previamente.")
                 break
-    except ConnectionResetError:
-        logging.error(f"Conexión con {addr[0]} cerrada inesperadamente.")
+
+            data = conn.recv(1024).decode('utf-8').strip()
+            if not data:
+                break
+
+            logging.info(f"Recibido de {addr[0]}: {data}")
+
+            # Verificar si el comando es "quit"
+            if data == "quit":
+                commands.quit_command(conn, addr, connections)
+                break
+
+            # Verificar si el comando existe y si tiene permisos para ejecutarlo
+            can_execute = commands.can_execute_command(data, user_privileges)
+            
+            if can_execute is None:
+                conn.send("Perdona, no entiendo lo que dices.\n".encode('utf-8'))
+            elif can_execute:
+                conn.send(f"Ejecutando comando: {data}\n".encode('utf-8'))
+                # Aquí puedes añadir la lógica de ejecución del comando
+            else:
+                conn.send(f"No tienes los privilegios necesarios para ejecutar '{data}'.\n".encode('utf-8'))
+
+    except OSError as e:
+        logging.error(f"Error en la conexión con {addr[0]}: {e}")
     finally:
-        # Intentar cerrar el socket solo si aún está abierto
         if conn.fileno() != -1:
             try:
                 conn.close()
@@ -65,8 +79,7 @@ def start_server(auth_callback):
     server_socket.listen(5)  # Permitir hasta 5 conexiones pendientes
     logging.info("Servidor escuchando en el puerto 5432...")
 
-    # Loop para aceptar múltiples conexiones
     while True:
-        conn, addr = server_socket.accept()  # Aceptar nueva conexión
+        conn, addr = server_socket.accept()
         client_thread = threading.Thread(target=handle_client, args=(conn, addr, auth_callback))
-        client_thread.start()  # Hilo independiente para manejar cada cliente
+        client_thread.start()

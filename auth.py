@@ -40,7 +40,7 @@ def authenticate_user(conn, addr):
     
     if is_ip_blocked(ip):
         conn.send("Su IP está temporalmente bloqueada. Intente de nuevo más tarde.\n".encode('utf-8'))
-        return False
+        return None
 
     conn.send("Ingrese su nombre de usuario: ".encode('utf-8'))
     username = conn.recv(1024).decode().strip()
@@ -55,7 +55,7 @@ def authenticate_user(conn, addr):
         if response == 'no':
             conn.send("Despedida. La conexión será cerrada.\n".encode('utf-8'))
             conn.close()
-            return
+            return None
 
         conn.send("Ingrese su dirección de correo electrónico: ".encode('utf-8'))
         email = conn.recv(1024).decode().strip()
@@ -74,12 +74,12 @@ def authenticate_user(conn, addr):
         db_connection.dbquery(insert_query, (username, hashed_password, email, 100, 0, validation_code))
         conn.send(f"Usuario creado con éxito. Verifique su correo electrónico en {email}.\n".encode('utf-8'))
         conn.close()
-        return
+        return None
 
     if user['active'] == 0:
         conn.send("Su cuenta ha sido deshabilitada. Por favor, consulte con un administrador.\n".encode('utf-8'))
         conn.close()
-        return
+        return None
 
     for attempt in range(3):
         conn.send("Ingrese su contraseña: ".encode('utf-8'))
@@ -88,7 +88,7 @@ def authenticate_user(conn, addr):
         if verify_password(user['password'], password):
             if user['validated'] == 1:
                 conn.send(f"Bienvenido de nuevo, {username}!\n".encode('utf-8'))
-                return
+                return user['privileges']
             else:
                 conn.send("Ingrese el código de validación enviado a su correo electrónico: ".encode('utf-8'))
                 for i in range(3):
@@ -97,12 +97,12 @@ def authenticate_user(conn, addr):
                         update_query = "UPDATE users SET validated = 1 WHERE username = %s"
                         db_connection.dbquery(update_query, (username,))
                         conn.send(f"Validación completada. Bienvenido {username}!\n".encode('utf-8'))
-                        return
+                        return user['privileges']
                     else:
                         conn.send("Código de validación incorrecto. Intente de nuevo.\n".encode('utf-8'))
                 conn.send("Ha fallado 3 veces. La conexión será cerrada.\n".encode('utf-8'))
                 conn.close()
-                return
+                return None
         else:
             conn.send(f"Contraseña incorrecta. Le quedan {2 - attempt} intentos.\n".encode('utf-8'))
 
@@ -120,7 +120,7 @@ def authenticate_user(conn, addr):
         if not user_email:
             conn.send("La cuenta de correo no existe en nuestro sistema.\n".encode('utf-8'))
             conn.close()
-            return
+            return None
 
         new_password = str(random.randint(10000, 99999))
         hashed_password = hash_password(new_password)
@@ -131,7 +131,8 @@ def authenticate_user(conn, addr):
         mail_resetpassword(email, new_password)
         conn.send("Revise su bandeja de entrada para la nueva contraseña.\n".encode('utf-8'))
         conn.close()
-        return
+        return None
     else:
         conn.send("De acuerdo, pues inténtalo de nuevo.\n".encode('utf-8'))
         conn.close()
+        return None
