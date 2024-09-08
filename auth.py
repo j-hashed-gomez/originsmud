@@ -5,7 +5,7 @@ import os
 import bcrypt
 from datetime import datetime, timedelta
 import random
-from mail import sendverificationcode  # Importamos la nueva función de mail.py
+from mail import sendverificationcode, mail_resetpassword
 
 # Lista para almacenar las IPs temporalmente bloqueadas
 temp_blocked_ips = []
@@ -74,7 +74,6 @@ def authenticate_user(conn, addr):
             hashed_password = hash_password(password)
             validation_code = generate_validation_code()
 
-            # Enviar el código de verificación por correo electrónico
             sendverificationcode(email, username, validation_code)
 
             insert_query = """
@@ -84,44 +83,67 @@ def authenticate_user(conn, addr):
             cursor.execute(insert_query, (username, hashed_password, email, 100, 0, validation_code))
             connection.commit()
 
-            conn.send(f"Usuario creado con éxito. Verifique su correo electrónico en {email}.\n".encode('utf-8'))  # Muestra solo el correo
+            conn.send(f"Usuario creado con éxito. Verifique su correo electrónico en {email}.\n".encode('utf-8'))
             conn.close()
             return
-        
-        # Usuario existe, validar la contraseña y el estado de validación
+
+        if user['active'] == 0:
+            conn.send("Su cuenta ha sido deshabilitada. Por favor, consulte con un administrador.\n".encode('utf-8'))
+            conn.close()
+            return
+
         conn.send("Ingrese su contraseña: ".encode('utf-8'))
         password = conn.recv(1024).decode().strip()
 
-        logging.debug(f"Usuario introducido: {username}")
-        logging.debug(f"Password introducido: {password}")
-        logging.debug(f"Datos en la DB - Nombre de usuario: {user['username']}, Password almacenada (hash): {user['password']}")
-        logging.debug(f"Código de validación en la DB: {user['validation_code']}")
-
-        if user['validated'] == 0:
-            conn.send("Ingrese el código de validación enviado a su correo electrónico: ".encode('utf-8'))
-            validation_code = conn.recv(1024).decode().strip()
-
-            logging.debug(f"Código de validación introducido por el usuario: {validation_code}")
-
-            if str(user['validation_code']) == validation_code and verify_password(user['password'], password):
-                update_query = "UPDATE users SET validated = 1 WHERE username = %s"
-                cursor.execute(update_query, (username,))
-                connection.commit()
-                conn.send(f"Validación completada. Bienvenido {username}!\n".encode('utf-8'))
+        if verify_password(user['password'], password):
+            if user['validated'] == 1:
+                conn.send(f"Bienvenido de nuevo, {username}!\n".encode('utf-8'))
+                return
             else:
-                conn.send("Código de validación o contraseña incorrectos.\n".encode('utf-8'))
+                conn.send("Ingrese el código de validación enviado a su correo electrónico: ".encode('utf-8'))
+                for i in range(3):
+                    validation_code = conn.recv(1024).decode().strip()
+                    if str(user['validation_code']) == validation_code:
+                        update_query = "UPDATE users SET validated = 1 WHERE username = %s"
+                        cursor.execute(update_query, (username,))
+                        connection.commit()
+                        conn.send(f"Validación completada. Bienvenido {username}!\n".encode('utf-8'))
+                        return
+                    else:
+                        conn.send("Código de validación incorrecto. Intente de nuevo.\n".encode('utf-8'))
+                conn.send("Ha fallado 3 veces. La conexión será cerrada.\n".encode('utf-8'))
                 conn.close()
                 return
-        elif user['validated'] == 1 and verify_password(user['password'], password):
-            conn.send(f"Bienvenido de nuevo, {username}!\n".encode('utf-8'))
         else:
             retries += 1
             conn.send("Contraseña incorrecta. Intente de nuevo.\n".encode('utf-8'))
             if retries >= 3:
-                temp_blocked_ips.append({"ip": ip, "date": datetime.now()})
-                conn.send("Ha fallado 3 veces. IP bloqueada por 1 minuto.\n".encode('utf-8'))
-                conn.close()
-                return
+                conn.send("Ha intentado demasiadas veces. ¿Desea iniciar el proceso de recuperación de contraseña? (s/n): ".encode('utf-8'))
+                response = conn.recv(1024).decode().strip().lower()
+                if response == 's':
+                    conn.send("Ingrese su dirección de correo electrónico: ".encode('utf-8'))
+                    email = conn.recv(1024).decode().strip()
+
+                    query = "SELECT * FROM users WHERE mail = %s"
+                    cursor.execute(query, (email,))
+                    user_email = cursor.fetchone()
+
+                    if not user_email:
+                        conn.send("La cuenta de correo no existe en nuestro sistema.\n".encode('utf-8'))
+                        conn.close()
+                        return
+
+                    new_password = str(random.randint(10000, 99999))
+                    hashed_password = hash_password(new_password)
+
+                    update_query = "UPDATE users SET password = %s WHERE mail = %s"
+                    cursor.execute(update_query, (hashed_password, email))
+                    connection.commit()
+
+                    mail_resetpassword(email, new_password)
+                    conn.send("Revise su bandeja de entrada para la nueva contraseña.\n".encode('utf-8'))
+                    conn.close()
+                    return
 
     except mysql.connector.Error as e:
         logging.error(f"Error en la consulta a la base de datos: {e}")
