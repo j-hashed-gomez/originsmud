@@ -2,7 +2,7 @@ import socket
 import threading
 import logging
 from datetime import datetime
-import commands  # Importar el módulo de comandos
+import commands
 
 # Array para almacenar las conexiones
 connections = []
@@ -31,26 +31,37 @@ def handle_client(conn, addr, auth_callback):
                 logging.info(f"Conexión con {addr[0]} cerrada previamente.")
                 break
 
-            data = conn.recv(1024).decode('utf-8').strip()
-            if not data:
+            try:
+                data = conn.recv(1024)
+                if not data:
+                    break
+
+                try:
+                    decoded_data = data.decode('utf-8').strip()
+                    logging.info(f"Recibido de {addr[0]}: {decoded_data}")
+                except UnicodeDecodeError as e:
+                    logging.error(f"Error de decodificación de UTF-8 desde {addr[0]}: {e}")
+                    conn.send("Error de formato en los datos recibidos.\n".encode('utf-8'))
+                    continue
+
+            except OSError as e:
+                logging.error(f"Error en la conexión con {addr[0]}: {e}")
                 break
 
-            logging.info(f"Recibido de {addr[0]}: {data}")
-
             # Verificar si el comando es "quit"
-            if data == "quit":
+            if decoded_data == "quit":
                 commands.quit_command(conn, addr, connections)
                 break
 
             # Verificar si el comando existe y si tiene permisos para ejecutarlo
-            can_execute = commands.can_execute_command(data, user_privileges)
+            can_execute = commands.can_execute_command(decoded_data, user_privileges)
             
             if can_execute is None:
                 conn.send("Perdona, no entiendo lo que dices.\n".encode('utf-8'))
             elif can_execute:
-                conn.send(f"Ejecutando comando: {data}\n".encode('utf-8'))
+                conn.send(f"Ejecutando comando: {decoded_data}\n".encode('utf-8'))
             else:
-                conn.send(f"No tienes los privilegios necesarios para ejecutar '{data}'.\n".encode('utf-8'))
+                conn.send(f"No tienes los privilegios necesarios para ejecutar '{decoded_data}'.\n".encode('utf-8'))
 
     except OSError as e:
         logging.error(f"Error en la conexión con {addr[0]}: {e}")

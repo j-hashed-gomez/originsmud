@@ -11,7 +11,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
         logging.StreamHandler(sys.stdout),  # Logs en stdout (consola)
-        logging.FileHandler("/var/log/originsmud.log")  # Guardar los logs en /var/log/originsmud.log
+        logging.FileHandler("/var/log/originsmud.log", mode='a')  # Guardar los logs en /var/log/originsmud.log
     ]
 )
 
