@@ -34,3 +34,4 @@ EXPOSE 5432
 # Ejecutar el script tetri_server.py con Python
 #CMD ["python3", "/app/originsmud_main.py"]
 CMD ["tail", "-f", "/dev/null"]
+
