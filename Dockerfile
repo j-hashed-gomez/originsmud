@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y \
 # Configurar Postfix para que acepte correos desde localhost
 RUN echo "inet_interfaces = loopback-only" >> /etc/postfix/main.cf \
     && echo "mydestination = localhost, originsmud.es" >> /etc/postfix/main.cf \
-    && echo "myhostname = originsmud.es" >> /etc/postfix/main.cf
+    && echo "myhostname = originsmud.es" > /etc/postfix/main.cf \
+    && echo "inet_protocols = ipv4" >> /etc/postfix/main.cf
 
 # Reiniciar Postfix para aplicar la configuración
 RUN service postfix restart
