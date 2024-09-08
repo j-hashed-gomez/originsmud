@@ -111,7 +111,6 @@ def authenticate_user(conn, addr):
         user = cursor.fetchone()
 
         if not user:
-            # Si el usuario no existe, preguntar si quiere crear un nuevo usuario
             conn.send("El usuario no existe. ¿Desea crear un nuevo usuario? (si/no): ".encode('utf-8'))
             response = conn.recv(1024).decode().strip().lower()
 
@@ -120,7 +119,6 @@ def authenticate_user(conn, addr):
                 conn.close()
                 return
 
-            # Crear un nuevo usuario
             conn.send("Ingrese su dirección de correo electrónico: ".encode('utf-8'))
             email = conn.recv(1024).decode().strip()
             conn.send("Ingrese una contraseña: ".encode('utf-8'))
@@ -145,11 +143,12 @@ def authenticate_user(conn, addr):
         password = conn.recv(1024).decode().strip()
         encrypted_password = encrypt_password(password)
 
-        # Debug: Mostrar la contraseña descifrada para verificar
-        logging.debug(f"Contraseña descifrada desde la base de datos: {decrypt_password(user['password'])}")
+        # Debug detallado: Mostrar la información del usuario desde la base de datos
+        db_decrypted_password = decrypt_password(user['password'])
+        logging.debug(f"Datos introducidos por el usuario - Nombre de usuario: {username}, Contraseña cifrada: {encrypted_password}")
+        logging.debug(f"Datos en la base de datos - Nombre de usuario: {user['username']}, Contraseña cifrada: {user['password']}, Contraseña descifrada: {db_decrypted_password}")
 
         if user['validated'] == 0:
-            # Si el usuario no está validado, pedir el código de validación
             conn.send("Ingrese el código de validación enviado a su correo electrónico: ".encode('utf-8'))
             validation_code = conn.recv(1024).decode().strip()
 
