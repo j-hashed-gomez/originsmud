@@ -10,8 +10,16 @@ from cryptography.hazmat.primitives.asymmetric import padding
 temp_blocked_ips = []
 
 # Cargar las claves desde las variables de entorno
-private_key_pem = os.getenv('ORIGINSMUD_PRIVATE').encode()
-public_key_pem = os.getenv('ORIGINSMUD_PUBLIC').encode()
+private_key_pem = os.getenv('ORIGINSMUD_PRIVATE')
+public_key_pem = os.getenv('ORIGINSMUD_PUBLIC')
+
+if not private_key_pem or not public_key_pem:
+    logging.error("No se pudieron cargar las claves ORIGINSMUD_PRIVATE o ORIGINSMUD_PUBLIC desde las variables de entorno.")
+else:
+    logging.debug("Claves cargadas correctamente.")
+
+private_key_pem = private_key_pem.encode()
+public_key_pem = public_key_pem.encode()
 
 # Cargar la clave privada desde las variables de entorno
 private_key = serialization.load_pem_private_key(private_key_pem, password=None)

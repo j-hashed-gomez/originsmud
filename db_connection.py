@@ -25,6 +25,7 @@ def connect_to_database():
         # Verificar si las variables están configuradas
         if not all([host, port, user, password, database]):
             logging.error("Faltan una o más variables de entorno para la conexión.")
+            logging.debug(f"Variables actuales - DB_HOST: {host}, DB_PORT: {port}, DB_USER: {user}, DB_NAME: {database}")
             return None
 
         # Conectar a la base de datos
