@@ -2,7 +2,9 @@ import db_connection
 import mysql.connector
 import logging
 import os
+import base64
 from datetime import datetime, timedelta
+import random
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
@@ -41,12 +43,10 @@ def is_ip_blocked(ip):
                 return False
     return False
 
-# Función para cifrar contraseñas (ajustada para claves de 2048 bits)
+# Función para cifrar contraseñas (y convertir a Base64)
 def encrypt_password(password):
     try:
         password_bytes = password.encode()
-
-        # Cifrar la contraseña con la clave pública de 2048 bits
         encrypted = public_key.encrypt(
             password_bytes,
             padding.OAEP(
@@ -55,38 +55,25 @@ def encrypt_password(password):
                 label=None
             )
         )
-        return encrypted
+        encrypted_base64 = base64.b64encode(encrypted).decode('utf-8')
+        return encrypted_base64
     except ValueError as e:
         logging.error(f"Error al cifrar la contraseña: {e}")
         raise
 
-# Función para descifrar contraseñas
-def decrypt_password(encrypted_password):
-    try:
-        decrypted = private_key.decrypt(
-            encrypted_password,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )
-        return decrypted.decode()
-    except ValueError as e:
-        logging.error(f"Error al descifrar la contraseña: {e}")
-        raise
+# Función para crear un nuevo código de validación
+def generate_validation_code():
+    return random.randint(100000, 999999)
 
 # Función de autenticación
 def authenticate_user(conn, addr):
-    ip = addr[0]  # Dirección IP del cliente
-    retries = 0   # Contador de intentos fallidos
+    ip = addr[0]
+    retries = 0
     
-    # Verificar si la IP está bloqueada
     if is_ip_blocked(ip):
         conn.send("Su IP está temporalmente bloqueada. Intente de nuevo más tarde.\n".encode('utf-8'))
         return False
     
-    # Crear la conexión a la base de datos
     connection = db_connection.connect_to_database()
     if not connection:
         conn.send("Error al conectar a la base de datos. Intente de nuevo más tarde.\n".encode('utf-8'))
@@ -94,52 +81,76 @@ def authenticate_user(conn, addr):
     
     try:
         cursor = connection.cursor(dictionary=True)
-        while retries < 3:
-            # Solicitar username y password
-            conn.send("Ingrese su nombre de usuario: ".encode('utf-8'))
-            username = conn.recv(1024).decode().strip()
-            conn.send("Ingrese su contrasena: ".encode('utf-8'))
+        conn.send("Ingrese su nombre de usuario: ".encode('utf-8'))
+        username = conn.recv(1024).decode().strip()
+
+        query = "SELECT * FROM users WHERE username = %s"
+        cursor.execute(query, (username,))
+        user = cursor.fetchone()
+
+        if not user:
+            # Si el usuario no existe, preguntar si quiere crear un nuevo usuario
+            conn.send("El usuario no existe. ¿Desea crear un nuevo usuario? (si/no): ".encode('utf-8'))
+            response = conn.recv(1024).decode().strip().lower()
+
+            if response == 'no':
+                conn.send("Despedida. La conexión será cerrada.\n".encode('utf-8'))
+                conn.close()
+                return
+
+            # Crear un nuevo usuario
+            conn.send("Ingrese su dirección de correo electrónico: ".encode('utf-8'))
+            email = conn.recv(1024).decode().strip()
+            conn.send("Ingrese una contraseña: ".encode('utf-8'))
             password = conn.recv(1024).decode().strip()
 
-            # Encriptar la contraseña antes de enviarla a la base de datos
             encrypted_password = encrypt_password(password)
+            validation_code = generate_validation_code()
 
-            # Consultar en la base de datos si el usuario y la contraseña son correctos
-            query = "SELECT * FROM users WHERE username = %s AND password = %s"
-            cursor.execute(query, (username, encrypted_password))
-            result = cursor.fetchone()
+            insert_query = """
+                INSERT INTO users (username, password, mail, privileges, validated, validation_code)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """
+            cursor.execute(insert_query, (username, encrypted_password, email, 100, 0, validation_code))
+            connection.commit()
 
-            if result:
-                # Usuario autenticado correctamente
-                welcome_message = f"Bienvenido a OriginsMUD, {username}!\n"
-                conn.send(welcome_message.encode('utf-8'))
-                logging.info(f"Usuario {username} autenticado correctamente desde {ip}")
-                return True
+            conn.send(f"Usuario creado con éxito. Verifique su correo electrónico con el código: {validation_code}\n".encode('utf-8'))
+            conn.close()
+            return
+        
+        # Usuario existe, validar la contraseña y el estado de validación
+        conn.send("Ingrese su contraseña: ".encode('utf-8'))
+        password = conn.recv(1024).decode().strip()
+        encrypted_password = encrypt_password(password)
+
+        if user['validated'] == 0:
+            # Si el usuario no está validado, pedir el código de validación
+            conn.send("Ingrese el código de validación enviado a su correo electrónico: ".encode('utf-8'))
+            validation_code = conn.recv(1024).decode().strip()
+
+            if str(user['validation_code']) == validation_code and user['password'] == encrypted_password:
+                update_query = "UPDATE users SET validated = 1 WHERE username = %s"
+                cursor.execute(update_query, (username,))
+                connection.commit()
+                conn.send(f"Validación completada. Bienvenido {username}!\n".encode('utf-8'))
             else:
-                # Fallo de autenticación
-                retries += 1
-                conn.send("Nombre de usuario o contrasena incorrectos. Intente de nuevo.\n".encode('utf-8'))
-                logging.warning(f"Intento fallido de autenticación desde {ip}")
+                conn.send("Código de validación o contraseña incorrectos.\n".encode('utf-8'))
+                conn.close()
+                return
+        elif user['validated'] == 1 and user['password'] == encrypted_password:
+            conn.send(f"Bienvenido de nuevo, {username}!\n".encode('utf-8'))
+        else:
+            retries += 1
+            conn.send("Contraseña incorrecta. Intente de nuevo.\n".encode('utf-8'))
+            if retries >= 3:
+                temp_blocked_ips.append({"ip": ip, "date": datetime.now()})
+                conn.send("Ha fallado 3 veces. IP bloqueada por 1 minuto.\n".encode('utf-8'))
+                conn.close()
+                return
 
     except mysql.connector.Error as e:
         logging.error(f"Error en la consulta a la base de datos: {e}")
         conn.send("Error en la consulta a la base de datos.\n".encode('utf-8'))
-    
     finally:
-        # Cerrar la conexión a la base de datos
         db_connection.close_database_connection(connection)
 
-    # Si falla 3 veces, bloquear la IP y purgar la sesión
-    if retries >= 3:
-        temp_blocked_ips.append({
-            "ip": ip,
-            "date": datetime.now()
-        })
-        conn.send("Ha fallado 3 veces. Su IP esta temporalmente bloqueada por 1 minuto.\n".encode('utf-8'))
-        logging.warning(f"IP {ip} bloqueada temporalmente por 1 minuto.")
-        
-        # Purgar la sesión cerrando la conexión con el cliente
-        conn.close()
-        logging.info(f"Sesión purgada para la IP {ip} tras 3 intentos fallidos.")
-
-    return False
