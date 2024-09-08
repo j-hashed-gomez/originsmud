@@ -2,6 +2,7 @@ import db_connection
 import mysql.connector
 import logging
 import os
+import bcrypt
 from datetime import datetime, timedelta
 import random
 
@@ -19,6 +20,16 @@ def is_ip_blocked(ip):
                 temp_blocked_ips.remove(blocked_ip)
                 return False
     return False
+
+# Función para hashear la contraseña
+def hash_password(password):
+    salt = bcrypt.gensalt()  # Genera un salt aleatorio
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)  # Aplica bcrypt al password con el salt
+    return hashed.decode('utf-8')  # Devuelve el hash como string para almacenamiento
+
+# Función para verificar la contraseña
+def verify_password(stored_password, provided_password):
+    return bcrypt.checkpw(provided_password.encode('utf-8'), stored_password.encode('utf-8'))
 
 # Función para crear un nuevo código de validación
 def generate_validation_code():
@@ -61,13 +72,14 @@ def authenticate_user(conn, addr):
             conn.send("Ingrese una contraseña: ".encode('utf-8'))
             password = conn.recv(1024).decode().strip()
 
+            hashed_password = hash_password(password)
             validation_code = generate_validation_code()
 
             insert_query = """
                 INSERT INTO users (username, password, mail, privileges, validated, validation_code)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """
-            cursor.execute(insert_query, (username, password, email, 100, 0, validation_code))
+            cursor.execute(insert_query, (username, hashed_password, email, 100, 0, validation_code))
             connection.commit()
 
             conn.send(f"Usuario creado con éxito. Verifique su correo electrónico con el código: {validation_code}\n".encode('utf-8'))
@@ -81,7 +93,7 @@ def authenticate_user(conn, addr):
         # Debug detallado: Mostrar la información del usuario desde la base de datos
         logging.debug(f"Usuario introducido: {username}")
         logging.debug(f"Password introducido: {password}")
-        logging.debug(f"Datos en la DB - Nombre de usuario: {user['username']}, Password: {user['password']}")
+        logging.debug(f"Datos en la DB - Nombre de usuario: {user['username']}, Password almacenada (hash): {user['password']}")
         logging.debug(f"Código de validación en la DB: {user['validation_code']}")
 
         if user['validated'] == 0:
@@ -90,7 +102,7 @@ def authenticate_user(conn, addr):
 
             logging.debug(f"Código de validación introducido por el usuario: {validation_code}")
 
-            if str(user['validation_code']) == validation_code and user['password'] == password:
+            if str(user['validation_code']) == validation_code and verify_password(user['password'], password):
                 update_query = "UPDATE users SET validated = 1 WHERE username = %s"
                 cursor.execute(update_query, (username,))
                 connection.commit()
@@ -99,7 +111,7 @@ def authenticate_user(conn, addr):
                 conn.send("Código de validación o contraseña incorrectos.\n".encode('utf-8'))
                 conn.close()
                 return
-        elif user['validated'] == 1 and user['password'] == password:
+        elif user['validated'] == 1 and verify_password(user['password'], password):
             conn.send(f"Bienvenido de nuevo, {username}!\n".encode('utf-8'))
         else:
             retries += 1
