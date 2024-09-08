@@ -14,7 +14,7 @@ temp_blocked_ips = []
 def is_ip_blocked(ip):
     for blocked_ip in temp_blocked_ips:
         if blocked_ip['ip'] == ip:
-            if datetime.now() < blocked_ip['date'] + timedelta(minutes=1):
+            if datetime.now() < blocked_ip['date'] + timedelta(minutes(1)):
                 return True
             else:
                 temp_blocked_ips.remove(blocked_ip)
@@ -118,32 +118,43 @@ def authenticate_user(conn, addr):
             else:
                 conn.send(f"Contraseña incorrecta. Le quedan {2 - attempt} intentos.\n".encode('utf-8'))
 
+        # Después de 3 intentos fallidos, pregunta sobre la recuperación de la contraseña
         conn.send("Ha intentado demasiadas veces. ¿Desea iniciar el proceso de recuperación de contraseña? (s/n): ".encode('utf-8'))
         response = conn.recv(1024).decode().strip().lower()
+
         if response == 's':
             conn.send("Ingrese su dirección de correo electrónico: ".encode('utf-8'))
             email = conn.recv(1024).decode().strip()
 
-            query = "SELECT * FROM users WHERE mail = %s"
-            cursor.execute(query, (email,))
-            user_email = cursor.fetchone()
+            try:
+                query = "SELECT * FROM users WHERE mail = %s"
+                cursor.execute(query, (email,))
+                user_email = cursor.fetchone()
 
-            if not user_email:
-                conn.send("La cuenta de correo no existe en nuestro sistema.\n".encode('utf-8'))
+                if not user_email:
+                    conn.send("La cuenta de correo no existe en nuestro sistema.\n".encode('utf-8'))
+                    conn.close()
+                    return
+
+                new_password = str(random.randint(10000, 99999))
+                hashed_password = hash_password(new_password)
+
+                update_query = "UPDATE users SET password = %s WHERE mail = %s"
+                cursor.execute(update_query, (hashed_password, email))
+                connection.commit()
+
+                mail_resetpassword(email, new_password)
+                conn.send("Revise su bandeja de entrada para la nueva contraseña.\n".encode('utf-8'))
                 conn.close()
                 return
-
-            new_password = str(random.randint(10000, 99999))
-            hashed_password = hash_password(new_password)
-
-            update_query = "UPDATE users SET password = %s WHERE mail = %s"
-            cursor.execute(update_query, (hashed_password, email))
-            connection.commit()
-
-            mail_resetpassword(email, new_password)
-            conn.send("Revise su bandeja de entrada para la nueva contraseña.\n".encode('utf-8'))
+            except mysql.connector.Error as e:
+                logging.error(f"Error en la consulta a la base de datos: {e}")
+                conn.send("Error en la consulta a la base de datos.\n".encode('utf-8'))
+                conn.close()
+                return
+        else:
+            conn.send("De acuerdo, pues inténtalo de nuevo.\n".encode('utf-8'))
             conn.close()
-            return
 
     except mysql.connector.Error as e:
         logging.error(f"Error en la consulta a la base de datos: {e}")
