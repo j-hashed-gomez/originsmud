@@ -13,7 +13,7 @@ logging.basicConfig(
 # Array para almacenar las conexiones
 connections = []
 
-# Función que maneja las conexiones entrantes, se mueve la autenticación fuera de este módulo
+# Función que maneja las conexiones entrantes
 def handle_client(conn, addr, auth_callback):
     # Guardar la IP y la fecha/hora de conexión
     connection_data = {
@@ -23,23 +23,30 @@ def handle_client(conn, addr, auth_callback):
     connections.append(connection_data)
     logging.info(f"Nueva conexión desde {addr[0]} en {connection_data['date']}")
 
-    # Llamar a la función de autenticación desde el main
+    # Llamar a la función de autenticación desde auth.py
     auth_callback(conn, addr)
 
     try:
-        # Mantener la conexión abierta mientras el cliente está conectado
         while True:
-            data = conn.recv(1024)
-            if not data:
+            try:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                logging.info(f"Recibido de {addr[0]}: {data.decode('utf-8')}")
+            except OSError as e:
+                logging.error(f"Error en la conexión con {addr[0]}: {e}")
                 break
-            logging.info(f"Recibido de {addr[0]}: {data.decode('utf-8')}")
     except ConnectionResetError:
         logging.error(f"Conexión con {addr[0]} cerrada inesperadamente.")
     finally:
-        conn.close()
-        logging.info(f"Conexión con {addr[0]} cerrada.")
+        try:
+            conn.close()
+            logging.info(f"Conexión con {addr[0]} cerrada.")
+        except OSError:
+            logging.error(f"Error al cerrar la conexión con {addr[0]}.")
+        connections.remove(connection_data)
 
-# Función para iniciar el servidor, llamada desde el archivo principal
+# Función para iniciar el servidor
 def start_server(auth_callback):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(('0.0.0.0', 5432))  # Escuchar en todas las interfaces
