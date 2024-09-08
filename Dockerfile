@@ -10,12 +10,9 @@ RUN apt-get update && apt-get install -y \
     postfix \
     && apt-get clean
 
-# Configurar Postfix para que acepte correos desde localhost sin autenticación y sólo permita enviar para el dominio originsmud.es
-RUN echo "relayhost = " >> /etc/postfix/main.cf \
-    && echo "inet_interfaces = loopback-only" >> /etc/postfix/main.cf \
+# Configurar Postfix para que acepte correos desde localhost
+RUN echo "inet_interfaces = loopback-only" >> /etc/postfix/main.cf \
     && echo "mydestination = localhost, originsmud.es" >> /etc/postfix/main.cf \
-    && echo "mynetworks = 127.0.0.0/8" >> /etc/postfix/main.cf \
-    && echo "local_recipient_maps =" >> /etc/postfix/main.cf \
     && echo "myhostname = originsmud.es" >> /etc/postfix/main.cf
 
 # Reiniciar Postfix para aplicar la configuración
