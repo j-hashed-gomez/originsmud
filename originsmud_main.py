@@ -4,13 +4,19 @@ import auth
 import logging
 import sys
 
-# Configuración de logs
+# Configuración de logs centralizada
 logging.basicConfig(
-    level=logging.DEBUG,  # Cambiado a DEBUG para obtener más detalles
+    level=logging.DEBUG,  # Nivel DEBUG para obtener más detalles
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    stream=sys.stdout
+    handlers=[
+        logging.StreamHandler(sys.stdout),  # Logs en stdout (consola)
+        logging.FileHandler("/var/log/originsmud.log")  # Guardar los logs en /var/log/originsmud.log
+    ]
 )
+
+# Ignorar los logs de postfix
+logging.getLogger('postfix').setLevel(logging.ERROR)
 
 if __name__ == "__main__":
     logging.info("Iniciando servidor OriginsMUD...")

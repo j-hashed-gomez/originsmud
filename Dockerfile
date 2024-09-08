@@ -19,6 +19,10 @@ RUN echo "inet_interfaces = loopback-only" >> /etc/postfix/main.cf \
 # Reiniciar Postfix para aplicar la configuración
 RUN service postfix restart
 
+# Crear el archivo de logs y asignar los permisos correctos
+RUN touch /var/log/originsmud.log \
+    && chmod 666 /var/log/originsmud.log  # Permitir escritura por todos los usuarios
+
 # Establecer el directorio de trabajo en /app
 WORKDIR /app
 
