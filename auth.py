@@ -114,8 +114,8 @@ def authenticate_user(conn, addr):
         conn.send("Ingrese su dirección de correo electrónico: ".encode('utf-8'))
         email = conn.recv(1024).decode().strip()
 
-        query = "SELECT * FROM users WHERE mail = %s"
-        user_email = db_connection.dbquery(query, (email,), fetchone=True)
+        query = "SELECT * FROM users WHERE username = %s AND mail = %s"
+        user_email = db_connection.dbquery(query, (username, email), fetchone=True)
 
         if not user_email:
             conn.send("La cuenta de correo no existe en nuestro sistema.\n".encode('utf-8'))
@@ -125,8 +125,8 @@ def authenticate_user(conn, addr):
         new_password = str(random.randint(10000, 99999))
         hashed_password = hash_password(new_password)
 
-        update_query = "UPDATE users SET password = %s WHERE mail = %s"
-        db_connection.dbquery(update_query, (hashed_password, email))
+        update_query = "UPDATE users SET password = %s WHERE username = %s AND mail = %s"
+        db_connection.dbquery(update_query, (hashed_password, username, email))
 
         mail_resetpassword(email, new_password)
         conn.send("Revise su bandeja de entrada para la nueva contraseña.\n".encode('utf-8'))
