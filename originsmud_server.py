@@ -11,6 +11,9 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+# Ignorar los logs de postfix
+logging.getLogger('postfix').setLevel(logging.ERROR)
+
 # Array para almacenar las conexiones
 connections = []
 
@@ -56,7 +59,6 @@ def handle_client(conn, addr, auth_callback):
                 conn.send("Perdona, no entiendo lo que dices.\n".encode('utf-8'))
             elif can_execute:
                 conn.send(f"Ejecutando comando: {data}\n".encode('utf-8'))
-                # Aquí puedes añadir la lógica de ejecución del comando
             else:
                 conn.send(f"No tienes los privilegios necesarios para ejecutar '{data}'.\n".encode('utf-8'))
 
