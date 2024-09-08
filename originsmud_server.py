@@ -4,6 +4,18 @@ import logging
 from datetime import datetime
 import commands
 
+# Configuración del log para que escriba en stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+# Ignorar los logs de postfix
+logging.getLogger('postfix').setLevel(logging.ERROR)
+
+
+
 # Array para almacenar las conexiones
 connections = []
 
