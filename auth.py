@@ -38,6 +38,7 @@ def is_ip_blocked(ip):
             if datetime.now() < blocked_ip['date'] + timedelta(minutes=1):
                 return True
             else:
+                # Eliminar IP del array si ha pasado el tiempo de bloqueo
                 temp_blocked_ips.remove(blocked_ip)
                 return False
     return False
@@ -110,6 +111,7 @@ def authenticate_user(conn, addr):
         user = cursor.fetchone()
 
         if not user:
+            # Si el usuario no existe, preguntar si quiere crear un nuevo usuario
             conn.send("El usuario no existe. ¿Desea crear un nuevo usuario? (si/no): ".encode('utf-8'))
             response = conn.recv(1024).decode().strip().lower()
 
@@ -142,6 +144,9 @@ def authenticate_user(conn, addr):
         conn.send("Ingrese su contraseña: ".encode('utf-8'))
         password = conn.recv(1024).decode().strip()
         encrypted_password = encrypt_password(password)
+
+        # Debug: Mostrar la contraseña descifrada para verificar
+        logging.debug(f"Contraseña descifrada desde la base de datos: {decrypt_password(user['password'])}")
 
         if user['validated'] == 0:
             # Si el usuario no está validado, pedir el código de validación
