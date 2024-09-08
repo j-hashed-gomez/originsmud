@@ -1,14 +1,16 @@
 import mysql.connector
 import logging
+import os
 
-# Función para conectarse a la base de datos
+# Función para conectarse a la base de datos usando variables de entorno
 def connect_to_database():
     try:
         connection = mysql.connector.connect(
-            host="your_db_host",
-            user="your_db_user",
-            password="your_db_password",
-            database="your_db_name"
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME"),
+            port=os.getenv("DB_PORT")
         )
         logging.info("Conexión a la base de datos exitosa.")
         return connection
