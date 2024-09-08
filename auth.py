@@ -38,7 +38,6 @@ def is_ip_blocked(ip):
             if datetime.now() < blocked_ip['date'] + timedelta(minutes=1):
                 return True
             else:
-                # Eliminar IP del array si ha pasado el tiempo de bloqueo
                 temp_blocked_ips.remove(blocked_ip)
                 return False
     return False
@@ -47,6 +46,8 @@ def is_ip_blocked(ip):
 def encrypt_password(password):
     try:
         password_bytes = password.encode()
+
+        # Cifrar la contraseña con la clave pública
         encrypted = public_key.encrypt(
             password_bytes,
             padding.OAEP(
@@ -55,10 +56,30 @@ def encrypt_password(password):
                 label=None
             )
         )
+
+        # Convertir el resultado a Base64 para almacenamiento
         encrypted_base64 = base64.b64encode(encrypted).decode('utf-8')
         return encrypted_base64
-    except ValueError as e:
+    except Exception as e:
         logging.error(f"Error al cifrar la contraseña: {e}")
+        raise
+
+# Función para descifrar contraseñas
+def decrypt_password(encrypted_password_base64):
+    try:
+        # Decodificar Base64 y descifrar la contraseña
+        encrypted_bytes = base64.b64decode(encrypted_password_base64.encode('utf-8'))
+        decrypted = private_key.decrypt(
+            encrypted_bytes,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        return decrypted.decode()
+    except Exception as e:
+        logging.error(f"Error al descifrar la contraseña: {e}")
         raise
 
 # Función para crear un nuevo código de validación
@@ -89,7 +110,6 @@ def authenticate_user(conn, addr):
         user = cursor.fetchone()
 
         if not user:
-            # Si el usuario no existe, preguntar si quiere crear un nuevo usuario
             conn.send("El usuario no existe. ¿Desea crear un nuevo usuario? (si/no): ".encode('utf-8'))
             response = conn.recv(1024).decode().strip().lower()
 
