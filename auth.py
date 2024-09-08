@@ -2,34 +2,11 @@ import db_connection
 import mysql.connector
 import logging
 import os
-import base64
 from datetime import datetime, timedelta
 import random
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
 
 # Lista para almacenar las IPs temporalmente bloqueadas
 temp_blocked_ips = []
-
-# Cargar las claves desde las variables de entorno
-private_key_pem = os.getenv('ORIGINSMUD_PRIVATE')
-public_key_pem = os.getenv('ORIGINSMUD_PUBLIC')
-
-if not private_key_pem or not public_key_pem:
-    logging.error("No se pudieron cargar las claves ORIGINSMUD_PRIVATE o ORIGINSMUD_PUBLIC desde las variables de entorno.")
-else:
-    logging.debug(f"Clave privada cargada (primeros 50 caracteres): {private_key_pem[:50]}")
-    logging.debug(f"Clave pública cargada (primeros 50 caracteres): {public_key_pem[:50]}")
-
-# Reemplazar los caracteres especiales de salto de línea y convertir a bytes
-private_key_pem = private_key_pem.replace('\\n', '\n').encode()
-public_key_pem = public_key_pem.replace('\\n', '\n').encode()
-
-# Cargar la clave privada desde las variables de entorno
-private_key = serialization.load_pem_private_key(private_key_pem, password=None)
-
-# Cargar la clave pública desde las variables de entorno
-public_key = serialization.load_pem_public_key(public_key_pem)
 
 # Función para verificar si la IP está bloqueada
 def is_ip_blocked(ip):
@@ -42,46 +19,6 @@ def is_ip_blocked(ip):
                 temp_blocked_ips.remove(blocked_ip)
                 return False
     return False
-
-# Función para cifrar contraseñas (y convertir a Base64)
-def encrypt_password(password):
-    try:
-        password_bytes = password.encode()
-
-        # Cifrar la contraseña con la clave pública
-        encrypted = public_key.encrypt(
-            password_bytes,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )
-
-        # Convertir el resultado a Base64 para almacenamiento
-        encrypted_base64 = base64.b64encode(encrypted).decode('utf-8')
-        return encrypted_base64
-    except Exception as e:
-        logging.error(f"Error al cifrar la contraseña: {e}")
-        raise
-
-# Función para descifrar contraseñas
-def decrypt_password(encrypted_password_base64):
-    try:
-        # Decodificar Base64 y descifrar la contraseña
-        encrypted_bytes = base64.b64decode(encrypted_password_base64.encode('utf-8'))
-        decrypted = private_key.decrypt(
-            encrypted_bytes,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )
-        return decrypted.decode()
-    except Exception as e:
-        logging.error(f"Error al descifrar la contraseña: {e}")
-        raise
 
 # Función para crear un nuevo código de validación
 def generate_validation_code():
@@ -124,14 +61,13 @@ def authenticate_user(conn, addr):
             conn.send("Ingrese una contraseña: ".encode('utf-8'))
             password = conn.recv(1024).decode().strip()
 
-            encrypted_password = encrypt_password(password)
             validation_code = generate_validation_code()
 
             insert_query = """
                 INSERT INTO users (username, password, mail, privileges, validated, validation_code)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """
-            cursor.execute(insert_query, (username, encrypted_password, email, 100, 0, validation_code))
+            cursor.execute(insert_query, (username, password, email, 100, 0, validation_code))
             connection.commit()
 
             conn.send(f"Usuario creado con éxito. Verifique su correo electrónico con el código: {validation_code}\n".encode('utf-8'))
@@ -141,13 +77,11 @@ def authenticate_user(conn, addr):
         # Usuario existe, validar la contraseña y el estado de validación
         conn.send("Ingrese su contraseña: ".encode('utf-8'))
         password = conn.recv(1024).decode().strip()
-        encrypted_password = encrypt_password(password)
 
         # Debug detallado: Mostrar la información del usuario desde la base de datos
-        db_decrypted_password = decrypt_password(user['password'])
         logging.debug(f"Usuario introducido: {username}")
-        logging.debug(f"Password introducido (cifrado): {encrypted_password}")
-        logging.debug(f"Datos en la DB - Nombre de usuario: {user['username']}, Password (cifrada): {user['password']}, Password (descifrada): {db_decrypted_password}")
+        logging.debug(f"Password introducido: {password}")
+        logging.debug(f"Datos en la DB - Nombre de usuario: {user['username']}, Password: {user['password']}")
         logging.debug(f"Código de validación en la DB: {user['validation_code']}")
 
         if user['validated'] == 0:
@@ -156,7 +90,7 @@ def authenticate_user(conn, addr):
 
             logging.debug(f"Código de validación introducido por el usuario: {validation_code}")
 
-            if str(user['validation_code']) == validation_code and user['password'] == encrypted_password:
+            if str(user['validation_code']) == validation_code and user['password'] == password:
                 update_query = "UPDATE users SET validated = 1 WHERE username = %s"
                 cursor.execute(update_query, (username,))
                 connection.commit()
@@ -165,7 +99,7 @@ def authenticate_user(conn, addr):
                 conn.send("Código de validación o contraseña incorrectos.\n".encode('utf-8'))
                 conn.close()
                 return
-        elif user['validated'] == 1 and user['password'] == encrypted_password:
+        elif user['validated'] == 1 and user['password'] == password:
             conn.send(f"Bienvenido de nuevo, {username}!\n".encode('utf-8'))
         else:
             retries += 1
