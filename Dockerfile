@@ -1,25 +1,25 @@
 # Utilizar la imagen oficial de Debian como base
 FROM debian:latest
 
-# Actualizar los paquetes e instalar sendmail, Python y otras dependencias necesarias
+# Actualizar los paquetes e instalar msmtp, Python y otras dependencias necesarias
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
     nano \
-    sendmail \
-    sendmail-bin \
+    msmtp \
     && apt-get clean
 
-# Configurar sendmail para que escuche solo en localhost
-RUN echo "DAEMON_OPTIONS('Port=smtp,Addr=127.0.0.1, Name=MTA')dnl" >> /etc/mail/sendmail.mc
-RUN echo "FEATURE('relay_local_from')dnl" >> /etc/mail/sendmail.mc
-RUN echo "Cwlocalhost originsmud.es" >> /etc/mail/sendmail.mc
-RUN echo "LOCAL_DOMAIN('localhost')dnl" >> /etc/mail/sendmail.mc
-RUN echo "DOMAIN('originsmud.es')dnl" >> /etc/mail/sendmail.mc
-RUN m4 /etc/mail/sendmail.mc > /etc/mail/sendmail.cf
-RUN newaliases
-RUN service sendmail restart
+# Configurar msmtp para enviar correos desde localhost
+RUN echo "defaults" > /etc/msmtprc \
+    && echo "auth off" >> /etc/msmtprc \
+    && echo "tls off" >> /etc/msmtprc \
+    && echo "logfile /var/log/msmtp.log" >> /etc/msmtprc \
+    && echo "account default" >> /etc/msmtprc \
+    && echo "host localhost" >> /etc/msmtprc \
+    && echo "from noreply@originsmud.es" >> /etc/msmtprc \
+    && echo "domain originsmud.es" >> /etc/msmtprc \
+    && chmod 600 /etc/msmtprc
 
 # Establecer el directorio de trabajo en /app
 WORKDIR /app
@@ -43,5 +43,5 @@ RUN chmod +x /app/originsmud_server.py
 # Exponer el puerto TCP 5432
 EXPOSE 5432
 
-# Iniciar el servicio sendmail y luego ejecutar el script de Python usando el formato JSON recomendado
-CMD ["bash", "-c", "service sendmail start && python3 /app/originsmud_main.py"]
+# Comando para iniciar el servidor
+CMD ["python3", "/app/originsmud_main.py"]
