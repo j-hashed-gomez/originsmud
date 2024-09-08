@@ -92,58 +92,58 @@ def authenticate_user(conn, addr):
             conn.close()
             return
 
-        conn.send("Ingrese su contraseña: ".encode('utf-8'))
-        password = conn.recv(1024).decode().strip()
+        for attempt in range(3):
+            conn.send("Ingrese su contraseña: ".encode('utf-8'))
+            password = conn.recv(1024).decode().strip()
 
-        if verify_password(user['password'], password):
-            if user['validated'] == 1:
-                conn.send(f"Bienvenido de nuevo, {username}!\n".encode('utf-8'))
-                return
-            else:
-                conn.send("Ingrese el código de validación enviado a su correo electrónico: ".encode('utf-8'))
-                for i in range(3):
-                    validation_code = conn.recv(1024).decode().strip()
-                    if str(user['validation_code']) == validation_code:
-                        update_query = "UPDATE users SET validated = 1 WHERE username = %s"
-                        cursor.execute(update_query, (username,))
-                        connection.commit()
-                        conn.send(f"Validación completada. Bienvenido {username}!\n".encode('utf-8'))
-                        return
-                    else:
-                        conn.send("Código de validación incorrecto. Intente de nuevo.\n".encode('utf-8'))
-                conn.send("Ha fallado 3 veces. La conexión será cerrada.\n".encode('utf-8'))
-                conn.close()
-                return
-        else:
-            retries += 1
-            conn.send("Contraseña incorrecta. Intente de nuevo.\n".encode('utf-8'))
-            if retries >= 3:
-                conn.send("Ha intentado demasiadas veces. ¿Desea iniciar el proceso de recuperación de contraseña? (s/n): ".encode('utf-8'))
-                response = conn.recv(1024).decode().strip().lower()
-                if response == 's':
-                    conn.send("Ingrese su dirección de correo electrónico: ".encode('utf-8'))
-                    email = conn.recv(1024).decode().strip()
-
-                    query = "SELECT * FROM users WHERE mail = %s"
-                    cursor.execute(query, (email,))
-                    user_email = cursor.fetchone()
-
-                    if not user_email:
-                        conn.send("La cuenta de correo no existe en nuestro sistema.\n".encode('utf-8'))
-                        conn.close()
-                        return
-
-                    new_password = str(random.randint(10000, 99999))
-                    hashed_password = hash_password(new_password)
-
-                    update_query = "UPDATE users SET password = %s WHERE mail = %s"
-                    cursor.execute(update_query, (hashed_password, email))
-                    connection.commit()
-
-                    mail_resetpassword(email, new_password)
-                    conn.send("Revise su bandeja de entrada para la nueva contraseña.\n".encode('utf-8'))
+            if verify_password(user['password'], password):
+                if user['validated'] == 1:
+                    conn.send(f"Bienvenido de nuevo, {username}!\n".encode('utf-8'))
+                    return
+                else:
+                    conn.send("Ingrese el código de validación enviado a su correo electrónico: ".encode('utf-8'))
+                    for i in range(3):
+                        validation_code = conn.recv(1024).decode().strip()
+                        if str(user['validation_code']) == validation_code:
+                            update_query = "UPDATE users SET validated = 1 WHERE username = %s"
+                            cursor.execute(update_query, (username,))
+                            connection.commit()
+                            conn.send(f"Validación completada. Bienvenido {username}!\n".encode('utf-8'))
+                            return
+                        else:
+                            conn.send("Código de validación incorrecto. Intente de nuevo.\n".encode('utf-8'))
+                    conn.send("Ha fallado 3 veces. La conexión será cerrada.\n".encode('utf-8'))
                     conn.close()
                     return
+            else:
+                conn.send(f"Contraseña incorrecta. Le quedan {2 - attempt} intentos.\n".encode('utf-8'))
+
+        conn.send("Ha intentado demasiadas veces. ¿Desea iniciar el proceso de recuperación de contraseña? (s/n): ".encode('utf-8'))
+        response = conn.recv(1024).decode().strip().lower()
+        if response == 's':
+            conn.send("Ingrese su dirección de correo electrónico: ".encode('utf-8'))
+            email = conn.recv(1024).decode().strip()
+
+            query = "SELECT * FROM users WHERE mail = %s"
+            cursor.execute(query, (email,))
+            user_email = cursor.fetchone()
+
+            if not user_email:
+                conn.send("La cuenta de correo no existe en nuestro sistema.\n".encode('utf-8'))
+                conn.close()
+                return
+
+            new_password = str(random.randint(10000, 99999))
+            hashed_password = hash_password(new_password)
+
+            update_query = "UPDATE users SET password = %s WHERE mail = %s"
+            cursor.execute(update_query, (hashed_password, email))
+            connection.commit()
+
+            mail_resetpassword(email, new_password)
+            conn.send("Revise su bandeja de entrada para la nueva contraseña.\n".encode('utf-8'))
+            conn.close()
+            return
 
     except mysql.connector.Error as e:
         logging.error(f"Error en la consulta a la base de datos: {e}")
