@@ -145,12 +145,16 @@ def authenticate_user(conn, addr):
 
         # Debug detallado: Mostrar la información del usuario desde la base de datos
         db_decrypted_password = decrypt_password(user['password'])
-        logging.debug(f"Datos introducidos por el usuario - Nombre de usuario: {username}, Contraseña cifrada: {encrypted_password}")
-        logging.debug(f"Datos en la base de datos - Nombre de usuario: {user['username']}, Contraseña cifrada: {user['password']}, Contraseña descifrada: {db_decrypted_password}")
+        logging.debug(f"Usuario introducido: {username}")
+        logging.debug(f"Password introducido (cifrado): {encrypted_password}")
+        logging.debug(f"Datos en la DB - Nombre de usuario: {user['username']}, Password (cifrada): {user['password']}, Password (descifrada): {db_decrypted_password}")
+        logging.debug(f"Código de validación en la DB: {user['validation_code']}")
 
         if user['validated'] == 0:
             conn.send("Ingrese el código de validación enviado a su correo electrónico: ".encode('utf-8'))
             validation_code = conn.recv(1024).decode().strip()
+
+            logging.debug(f"Código de validación introducido por el usuario: {validation_code}")
 
             if str(user['validation_code']) == validation_code and user['password'] == encrypted_password:
                 update_query = "UPDATE users SET validated = 1 WHERE username = %s"
@@ -177,4 +181,3 @@ def authenticate_user(conn, addr):
         conn.send("Error en la consulta a la base de datos.\n".encode('utf-8'))
     finally:
         db_connection.close_database_connection(connection)
-
