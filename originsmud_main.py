@@ -9,13 +9,11 @@ logging.basicConfig(
     level=logging.DEBUG,  # Nivel DEBUG para obtener todos los detalles
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.StreamHandler(sys.stdout)  # Solo loggear en stdout
-    ]
+    stream=sys.stdout
 )
 
 # Ignorar los logs de postfix (solo si es necesario)
-logging.getLogger('postfix').setLevel(logging.ERROR)
+#logging.getLogger('postfix').setLevel(logging.ERROR)
 
 if __name__ == "__main__":
     logging.info("Iniciando servidor OriginsMUD...")
