@@ -4,11 +4,12 @@ import logging
 from datetime import datetime
 import commands
 
-# Configuración del log para que escriba en stdout
+# Configuración de logs centralizada para que todo salga por stdout
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Nivel DEBUG para obtener todos los detalles
     format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout
 )
 
 # Array para almacenar las conexiones

@@ -2,6 +2,14 @@ import mysql.connector
 import logging
 import os
 
+# Configuración de logs centralizada para que todo salga por stdout
+logging.basicConfig(
+    level=logging.DEBUG,  # Nivel DEBUG para obtener todos los detalles
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout
+)
+
 # Función para conectarse a la base de datos usando variables de entorno
 def connect_to_database():
     try:

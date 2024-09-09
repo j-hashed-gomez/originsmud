@@ -1,6 +1,14 @@
 import db_connection
 import logging
 
+# Configuración de logs centralizada para que todo salga por stdout
+logging.basicConfig(
+    level=logging.DEBUG,  # Nivel DEBUG para obtener todos los detalles
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout
+)
+
 # Clase Command para almacenar la información de cada comando
 class Command:
     def __init__(self, command_id, command, privileges_required, short_description, long_description):
