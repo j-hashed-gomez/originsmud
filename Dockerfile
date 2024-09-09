@@ -1,5 +1,5 @@
 # Utilizar la imagen oficial de Debian como base
-FROM debian:latest
+FROM ubuntu:latest
 
 # Actualizar los paquetes e instalar Postfix, Python y otras dependencias necesarias
 RUN apt-get update && apt-get install -y \
@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     nano \
     postfix \
+    rsyslog \
     && apt-get clean
 
 # Configurar Postfix para que acepte correos desde localhost
