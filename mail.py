@@ -2,6 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import sys
+import logging
 
 # Configuración de logs centralizada para que todo salga por stdout
 logging.basicConfig(
