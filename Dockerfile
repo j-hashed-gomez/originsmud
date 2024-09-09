@@ -43,4 +43,4 @@ EXPOSE 5432
 
 # Iniciar el servicio Postfix y luego ejecutar el script de Python
 #CMD [ "tail", "-f", "/dev/null" ]
-CMD [ "python3", "/app/originsmud_main.py" ]
+CMD service postfix start && python3 /app/originsmud_main.py
