@@ -32,18 +32,19 @@ def sendverificationcode(email, username, validation_code):
     message.attach(MIMEText(body, "html"))
 
     try:
+        logging.debug(f"Enviando correo de verificación a {receiver_email}...")
         with smtplib.SMTP("localhost", 25) as server:
             server.sendmail(sender_email, receiver_email, message.as_string())
-            print(f"Correo enviado con éxito a {receiver_email}")
+            logging.info(f"Correo enviado con éxito a {receiver_email}")
     except Exception as e:
-        print(f"Error al enviar el correo: {e}")
+        logging.error(f"Error al enviar el correo de verificación a {receiver_email}: {e}")
 
 
 def mail_resetpassword(email, new_password):
     sender_email = "noreply@originsmud.es"
     receiver_email = email
 
-    subject = "OriginsMUD password reset"
+    subject = "Restablecimiento de contraseña de OriginsMUD"
     body = f"""
     Hola,
 
@@ -61,8 +62,9 @@ def mail_resetpassword(email, new_password):
     message.attach(MIMEText(body, "html"))
 
     try:
+        logging.debug(f"Enviando correo de restablecimiento de contraseña a {receiver_email}...")
         with smtplib.SMTP("localhost", 25) as server:
             server.sendmail(sender_email, receiver_email, message.as_string())
-            print(f"Correo de restablecimiento de contraseña enviado con éxito a {receiver_email}")
+            logging.info(f"Correo de restablecimiento de contraseña enviado con éxito a {receiver_email}")
     except Exception as e:
-        print(f"Error al enviar el correo de restablecimiento: {e}")
+        logging.error(f"Error al enviar el correo de restablecimiento a {receiver_email}: {e}")
