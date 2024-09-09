@@ -51,8 +51,8 @@ def can_execute_command(command_name, user_privileges):
                 return False
     return None  # Retorna None si no se encuentra el comando
 
-# Función para mostrar todos los comandos disponibles para el usuario
-def list_commands(conn, user_privileges):
+# Función para mostrar todos los comandos disponibles para el usuario (comando "comandos")
+def comandos_command(conn, user_privileges):
     available_commands = [cmd for cmd in commands_list if user_privileges >= cmd.privileges_required]
     if available_commands:
         conn.send("Comandos disponibles:\n".encode('utf-8'))
@@ -60,7 +60,6 @@ def list_commands(conn, user_privileges):
             conn.send(f"{cmd.command} : {cmd.short_description}\n".encode('utf-8'))
     else:
         conn.send("No tienes comandos disponibles para ejecutar.\n".encode('utf-8'))
-
 
 # Función para manejar el comando quit
 def quit_command(conn, addr, connections):

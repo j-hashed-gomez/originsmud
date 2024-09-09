@@ -63,14 +63,19 @@ def handle_client(conn, addr, auth_callback):
                 break
 
             # Verificar si el comando existe y si tiene permisos para ejecutarlo
-            can_execute = commands.can_execute_command(decoded_data, user_privileges)
-            
-            if can_execute is None:
-                conn.send("Perdona, no entiendo lo que dices.\n".encode('utf-8'))
-            elif can_execute:
-                conn.send(f"Ejecutando comando: {decoded_data}\n".encode('utf-8'))
+            if decoded_data == "list_commands" or decoded_data == "comandos":
+                commands.list_commands(conn, user_privileges)
             else:
-                conn.send(f"No tienes los privilegios necesarios para ejecutar '{decoded_data}'.\n".encode('utf-8'))
+                can_execute = commands.can_execute_command(decoded_data, user_privileges)
+
+                if can_execute is None:
+                    conn.send("Perdona, no entiendo lo que dices.\n".encode('utf-8'))
+                elif can_execute:
+                    # Mostrar el mensaje "Ejecutando comando" sólo para otros comandos
+                    conn.send(f"Ejecutando comando: {decoded_data}\n".encode('utf-8'))
+                else:
+                    conn.send(f"No tienes los privilegios necesarios para ejecutar '{decoded_data}'.\n".encode('utf-8'))
+
 
     except OSError as e:
         logging.error(f"Error en la conexión con {addr[0]}: {e}")
