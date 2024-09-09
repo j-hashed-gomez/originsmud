@@ -64,7 +64,7 @@ def handle_client(conn, addr, auth_callback):
 
             # Verificar si el comando existe y si tiene permisos para ejecutarlo
             if decoded_data == "list_commands" or decoded_data == "comandos":
-                commands.list_commands(conn, user_privileges)
+                commands.comandos_command(conn, user_privileges)
             else:
                 can_execute = commands.can_execute_command(decoded_data, user_privileges)
 
