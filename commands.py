@@ -1,5 +1,6 @@
 import db_connection
 import logging
+import sys
 
 # Configuración de logs centralizada para que todo salga por stdout
 logging.basicConfig(

@@ -1,6 +1,7 @@
 import mysql.connector
 import logging
 import os
+import sys
 
 # Configuración de logs centralizada para que todo salga por stdout
 logging.basicConfig(

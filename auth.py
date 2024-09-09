@@ -5,6 +5,7 @@ import bcrypt
 from datetime import datetime, timedelta
 import random
 from mail import sendverificationcode, mail_resetpassword
+import sys
 
 # Configuración de logs centralizada para que todo salga por stdout
 logging.basicConfig(

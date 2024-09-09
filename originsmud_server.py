@@ -3,6 +3,7 @@ import threading
 import logging
 from datetime import datetime
 import commands
+import sys
 
 # Configuración de logs centralizada para que todo salga por stdout
 logging.basicConfig(
