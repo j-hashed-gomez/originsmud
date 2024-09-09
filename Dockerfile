@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     nano \
     postfix \
-    rsyslog \
     && apt-get clean
 
 # Configurar Postfix para que acepte correos desde localhost
