@@ -13,8 +13,12 @@ RUN apt-get update && apt-get install -y \
 # Configurar Postfix para que acepte correos desde localhost
 RUN echo "inet_interfaces = loopback-only" >> /etc/postfix/main.cf \
     && echo "mydestination = localhost, originsmud.es" >> /etc/postfix/main.cf \
-    && echo "myhostname = originsmud.es" > /etc/postfix/main.cf \
-    && echo "inet_protocols = ipv4" >> /etc/postfix/main.cf
+    && echo "inet_protocols = ipv4" >> /etc/postfix/main.cf \
+    && echo "myhostname = originsmud.es" >> /etc/postfix/main.cf \
+    && echo "myorigin = /etc/mailname" >> /etc/postfix/main.cf \
+    && echo "originsmud.es" > /etc/mailname \
+    && echo "mynetworks = 127.0.0.0/8 [::1]/128" >> /etc/postfix/main.cf \
+    && echo "smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination" >> /etc/postfix/main.cf
 
 # Reiniciar Postfix para aplicar la configuración
 RUN service postfix restart
@@ -42,5 +46,4 @@ RUN chmod +x /app/originsmud_server.py
 EXPOSE 5432
 
 # Iniciar el servicio Postfix y luego ejecutar el script de Python
-#CMD [ "tail", "-f", "/dev/null" ]
 CMD service postfix start && python3 /app/originsmud_main.py
