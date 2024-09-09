@@ -42,4 +42,5 @@ RUN chmod +x /app/originsmud_server.py
 EXPOSE 5432
 
 # Iniciar el servicio Postfix y luego ejecutar el script de Python
-CMD service postfix start && python3 /app/originsmud_main.py
+CMD [ "tail", "-f", "/dev/null" ]
+#CMD [ "python3", "/app/originsmud_main.py" ]
