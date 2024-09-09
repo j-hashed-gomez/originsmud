@@ -1,5 +1,5 @@
 # Utilizar la imagen oficial de Debian como base
-FROM ubuntu:latest
+FROM debian:latest
 
 # Actualizar los paquetes e instalar Postfix, Python y otras dependencias necesarias
 RUN apt-get update && apt-get install -y \
